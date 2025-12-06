@@ -219,6 +219,7 @@ export interface DrawResult {
   timestamp: number;
   funFact?: string;
   mode: DrawMode;
+  prize?: string;
 }
 
 export enum DrawState {
@@ -569,7 +570,7 @@ export default SplashScreen;
   // src/App.tsx
   src.file("App.tsx", `
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, RefreshCw, Trophy, Sparkles, Settings2, Download, History as HistoryIcon, Timer, X, Package, Users, Hash, Plus, Trash2, Edit } from 'lucide-react';
+import { Play, RefreshCw, Trophy, Sparkles, Settings2, Download, History as HistoryIcon, Timer, X, Package, Users, Hash, Plus, Trash2, Edit, Gift } from 'lucide-react';
 import Header from './components/Header';
 import Confetti from './components/Confetti';
 import SplashScreen from './components/SplashScreen';
@@ -586,6 +587,7 @@ const App: React.FC = () => {
   const [maxRange, setMaxRange] = useState<string>('100');
   
   const [items, setItems] = useState<string[]>([]);
+  const [prize, setPrize] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newItemInput, setNewItemInput] = useState('');
 
@@ -610,11 +612,19 @@ const App: React.FC = () => {
         console.error("Error parsing saved items", e);
       }
     }
+    const savedPrize = localStorage.getItem('sorteoGenius_prize');
+    if (savedPrize) {
+        setPrize(savedPrize);
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('sorteoGenius_items', JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem('sorteoGenius_prize', prize);
+  }, [prize]);
 
   const generateRandomNumber = (min: number, max: number) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -706,7 +716,8 @@ const App: React.FC = () => {
             id: Date.now(),
             value: winner,
             timestamp: Date.now(),
-            mode: mode
+            mode: mode,
+            prize: (mode === 'NAMES' && prize.trim()) ? prize : undefined
         };
         
         setHistory(prev => [newResult, ...prev]);
@@ -715,7 +726,7 @@ const App: React.FC = () => {
     };
 
     animate();
-  }, [minRange, maxRange, duration, mode, items]);
+  }, [minRange, maxRange, duration, mode, items, prize]);
 
   const fetchFunFact = async (value: string | number, resultId: number) => {
     setLoadingFact(true);
@@ -749,6 +760,7 @@ const App: React.FC = () => {
     history.forEach((item, index) => {
       const date = new Date(item.timestamp).toLocaleTimeString();
       content += \`Resultado #\${history.length - index} (\${item.mode === 'NAMES' ? 'Nombre' : 'Número'}): \${item.value}\\n\`;
+      if (item.prize) content += \`Premio: \${item.prize}\\n\`;
       content += \`Hora: \${date}\\n\`;
       if (item.funFact) content += \`Dato IA: \${item.funFact}\\n\`;
       content += "----------------------------------------\\n";
@@ -869,10 +881,17 @@ const App: React.FC = () => {
                         onClick={() => setIsModalOpen(true)}
                         className="w-full bg-black/20 border border-purple-500/30 hover:border-purple-500 rounded-xl px-4 py-3 text-lg text-left flex items-center justify-between group-hover:bg-black/30 transition-all text-purple-200"
                     >
-                        <span className="truncate">
-                            {items.length === 0 ? "Añadir participantes..." : \`\${items.length} opciones configuradas\`}
-                        </span>
-                        <Edit className="w-5 h-5 opacity-70" />
+                        <div className="flex flex-col truncate">
+                            <span className="truncate">
+                                {items.length === 0 ? "Configurar participantes..." : \`\${items.length} opciones configuradas\`}
+                            </span>
+                            {prize && (
+                                <span className="text-xs text-purple-300/70 truncate flex items-center gap-1 mt-1">
+                                    <Gift className="w-3 h-3" /> Premio: {prize}
+                                </span>
+                            )}
+                        </div>
+                        <Edit className="w-5 h-5 opacity-70 flex-shrink-0 ml-2" />
                     </button>
                 </div>
             )}
@@ -927,20 +946,28 @@ const App: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {history.map((item, index) => (
-                        <div key={item.id} className="bg-black/20 border border-white/5 rounded-xl p-4 flex items-center justify-between group hover:bg-black/30 transition-colors">
-                            <div className="overflow-hidden">
-                                <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                        <div key={item.id} className="bg-black/20 border border-white/5 rounded-xl p-4 flex flex-col justify-between group hover:bg-black/30 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                                 <span className="text-xs text-slate-500 flex items-center gap-1">
                                     {item.mode === 'NAMES' ? <Users className="w-3 h-3" /> : <Hash className="w-3 h-3" />}
                                     {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
                                 </span>
-                                <div className="font-bold text-xl text-slate-200 truncate" title={item.value.toString()}>
-                                    {item.value}
-                                </div>
+                                {index === 0 && (
+                                    <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-200 px-2 py-0.5 rounded uppercase tracking-wider border border-yellow-500/20 whitespace-nowrap">
+                                        Nuevo
+                                    </span>
+                                )}
                             </div>
-                            {index === 0 && (
-                                <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-200 px-2 py-1 rounded uppercase tracking-wider border border-yellow-500/20 whitespace-nowrap ml-2">
-                                    Nuevo
-                                </span>
+                            
+                            <div className="font-bold text-xl text-slate-200 truncate" title={item.value.toString()}>
+                                {item.value}
+                            </div>
+                            
+                            {item.prize && (
+                                <div className="mt-2 text-xs text-purple-300 flex items-center gap-1 truncate border-t border-white/5 pt-2">
+                                    <Gift className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate">{item.prize}</span>
+                                </div>
                             )}
                         </div>
                     ))}
@@ -961,11 +988,11 @@ const App: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-300">
+            <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         <Users className="w-5 h-5 text-purple-400" />
-                        Gestionar Participantes
+                        Gestionar Sorteo
                     </h3>
                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
                         <X className="w-6 h-6" />
@@ -973,12 +1000,28 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                    
+                    <div className="mb-6 bg-purple-500/5 p-4 rounded-xl border border-purple-500/20">
+                        <label className="block text-xs uppercase tracking-wider text-purple-300 mb-2 font-bold flex items-center gap-1">
+                            <Gift className="w-3 h-3" /> Premio (Opcional)
+                        </label>
+                        <input
+                            type="text"
+                            value={prize}
+                            onChange={(e) => setPrize(e.target.value)}
+                            placeholder="¿Qué se sortea? (Ej. Una Pizza)"
+                            className="w-full bg-black/30 border border-purple-500/30 rounded-lg px-3 py-2 text-sm text-purple-100 placeholder-purple-300/30 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                    </div>
+
+                    <div className="w-full h-px bg-white/10 mb-4"></div>
+
                     <form onSubmit={handleAddItem} className="flex gap-2 mb-4">
                         <input 
                             type="text" 
                             value={newItemInput}
                             onChange={(e) => setNewItemInput(e.target.value)}
-                            placeholder="Nombre o Frase..."
+                            placeholder="Añadir Nombre o Frase..."
                             className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                             autoFocus
                         />
@@ -1041,6 +1084,15 @@ const App: React.FC = () => {
                   \`}>
                     {currentDisplayValue}
                   </div>
+
+                  {drawState === DrawState.COMPLETED && history[0]?.prize && (
+                      <div className="animate-in fade-in slide-in-from-top-4 duration-700 delay-300 flex items-center justify-center gap-2 mt-2">
+                          <div className="bg-purple-600/30 backdrop-blur-md border border-purple-500/50 px-6 py-2 rounded-full text-purple-100 font-bold text-xl md:text-2xl shadow-lg shadow-purple-500/20 flex items-center gap-2">
+                              <Gift className="w-6 h-6 text-purple-300" />
+                              <span>{history[0].prize}</span>
+                          </div>
+                      </div>
+                  )}
                   
                   {drawState === DrawState.COMPLETED && (
                     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 flex flex-col items-center mt-8 max-w-2xl mx-auto">

@@ -12,6 +12,7 @@ export interface DrawResult {
   timestamp: number;
   funFact?: string;
   mode: DrawMode;
+  prize?: string; // New optional prize field
 }
 
 export enum DrawState {
